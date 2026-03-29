@@ -1,10 +1,12 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { GridCanvas } from "./components/GridCanvas";
 import { Toolbar } from "./components/Toolbar";
 import { PatternPanel } from "./components/PatternPanel";
 import { StatusBar } from "./components/StatusBar";
 import { useGameEngine } from "./hooks/useGameEngine";
 import { usePatterns } from "./hooks/usePatterns";
+
+const MAX_HISTORY = 200;
 
 export function App() {
   const engine = useGameEngine();
@@ -15,6 +17,21 @@ export function App() {
     row: number;
   } | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
+  const [popHistory, setPopHistory] = useState<number[]>([]);
+  const prevGenRef = useRef(-1);
+
+  useEffect(() => {
+    if (engine.generation === 0) {
+      setPopHistory([engine.population]);
+      prevGenRef.current = 0;
+    } else if (engine.generation !== prevGenRef.current) {
+      setPopHistory((prev) => {
+        const next = [...prev, engine.population];
+        return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+      });
+      prevGenRef.current = engine.generation;
+    }
+  }, [engine.generation, engine.population]);
 
   const handleCursorMove = useCallback(
     (pos: { col: number; row: number } | null) => {
@@ -69,6 +86,7 @@ export function App() {
         generation={engine.generation}
         population={engine.population}
         cursorPos={cursorPos}
+        popHistory={popHistory}
       />
     </div>
   );
