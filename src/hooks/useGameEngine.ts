@@ -108,10 +108,9 @@ export function useGameEngine(): UseGameEngineReturn {
   );
 
   const clear = useCallback(() => {
-    stopInternal();
     engineRef.current.clear();
     sync();
-  }, [stopInternal, sync]);
+  }, [sync]);
 
   const loadCells = useCallback(
     (cells: [number, number][]) => {
