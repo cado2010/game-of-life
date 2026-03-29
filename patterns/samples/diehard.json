@@ -1,0 +1,13 @@
+{
+  "name": "Diehard",
+  "description": "7 cells that vanish completely after exactly 130 generations.",
+  "author": "Unknown",
+  "category": "methuselah",
+  "cells": [
+    [6, 0],
+    [0, 1], [1, 1],
+    [1, 2], [5, 2], [6, 2], [7, 2]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

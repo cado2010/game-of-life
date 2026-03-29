@@ -1,0 +1,12 @@
+{
+  "name": "Block",
+  "description": "2x2 square; the simplest still life.",
+  "author": "John Conway",
+  "category": "still-life",
+  "cells": [
+    [0, 0], [1, 0],
+    [0, 1], [1, 1]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

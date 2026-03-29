@@ -1,0 +1,14 @@
+{
+  "name": "Lightweight Spaceship",
+  "description": "Moves horizontally two cells every 4 generations.",
+  "author": "John Conway",
+  "category": "spaceship",
+  "cells": [
+    [0, 0], [3, 0],
+    [4, 1],
+    [0, 2], [4, 2],
+    [1, 3], [2, 3], [3, 3], [4, 3]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

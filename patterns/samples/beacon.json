@@ -1,0 +1,14 @@
+{
+  "name": "Beacon",
+  "description": "Period-2 oscillator; two diagonally offset 2x2 blocks.",
+  "author": "John Conway",
+  "category": "oscillator",
+  "cells": [
+    [0, 0], [1, 0],
+    [0, 1], [1, 1],
+    [2, 2], [3, 2],
+    [2, 3], [3, 3]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

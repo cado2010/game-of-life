@@ -1,0 +1,12 @@
+{
+  "name": "Toad",
+  "description": "Period-2 oscillator; 6 cells in two offset rows.",
+  "author": "Simon Norton",
+  "category": "oscillator",
+  "cells": [
+    [1, 0], [2, 0], [3, 0],
+    [0, 1], [1, 1], [2, 1]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

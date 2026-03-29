@@ -1,0 +1,11 @@
+{
+  "name": "Blinker",
+  "description": "Period-2 oscillator; 3 cells in a line.",
+  "author": "John Conway",
+  "category": "oscillator",
+  "cells": [
+    [0, 0], [1, 0], [2, 0]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

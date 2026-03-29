@@ -1,0 +1,13 @@
+{
+  "name": "R-pentomino",
+  "description": "5 cells that produce a chaotic sequence stabilizing after 1103 generations.",
+  "author": "John Conway",
+  "category": "methuselah",
+  "cells": [
+    [1, 0], [2, 0],
+    [0, 1], [1, 1],
+    [1, 2]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}
