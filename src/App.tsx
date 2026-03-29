@@ -18,16 +18,23 @@ export function App() {
   } | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
   const [popHistory, setPopHistory] = useState<number[]>([]);
+  const [popStartGen, setPopStartGen] = useState(0);
   const prevGenRef = useRef(-1);
 
   useEffect(() => {
     if (engine.generation === 0) {
       setPopHistory([engine.population]);
+      setPopStartGen(0);
       prevGenRef.current = 0;
     } else if (engine.generation !== prevGenRef.current) {
       setPopHistory((prev) => {
         const next = [...prev, engine.population];
-        return next.length > MAX_HISTORY ? next.slice(next.length - MAX_HISTORY) : next;
+        if (next.length > MAX_HISTORY) {
+          const trimmed = next.slice(next.length - MAX_HISTORY);
+          setPopStartGen(engine.generation - trimmed.length + 1);
+          return trimmed;
+        }
+        return next;
       });
       prevGenRef.current = engine.generation;
     }
@@ -87,6 +94,7 @@ export function App() {
         population={engine.population}
         cursorPos={cursorPos}
         popHistory={popHistory}
+        popHistoryStartGen={popStartGen}
       />
     </div>
   );

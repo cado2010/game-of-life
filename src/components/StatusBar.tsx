@@ -5,9 +5,10 @@ interface StatusBarProps {
   population: number;
   cursorPos: { col: number; row: number } | null;
   popHistory: number[];
+  popHistoryStartGen: number;
 }
 
-export function StatusBar({ generation, population, cursorPos, popHistory }: StatusBarProps) {
+export function StatusBar({ generation, population, cursorPos, popHistory, popHistoryStartGen }: StatusBarProps) {
   return (
     <div className="flex items-center gap-6 px-4 py-1.5 bg-gray-900 border-t border-gray-800 text-xs text-gray-400 font-mono">
       <span>
@@ -23,8 +24,7 @@ export function StatusBar({ generation, population, cursorPos, popHistory }: Sta
         </span>
       </span>
       <div className="ml-auto flex items-center gap-2">
-        <span className="text-[10px] text-gray-500">POP</span>
-        <PopulationGraph history={popHistory} width={200} height={28} />
+        <PopulationGraph history={popHistory} startGeneration={popHistoryStartGen} width={240} height={56} />
       </div>
     </div>
   );
