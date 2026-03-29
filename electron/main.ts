@@ -2,7 +2,7 @@ import { app, BrowserWindow } from "electron";
 import path from "path";
 import { startServer } from "../server/index.js";
 
-const isDev = process.env.NODE_ENV !== "production";
+let apiPort = 3001;
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -15,17 +15,23 @@ function createWindow() {
     },
   });
 
-  if (isDev) {
+  if (!app.isPackaged) {
     win.loadURL("http://localhost:5173");
     win.webContents.openDevTools();
   } else {
-    win.loadFile(path.join(__dirname, "../dist/index.html"));
+    const indexPath = path.join(__dirname, "..", "dist", "index.html");
+    win.loadFile(indexPath, {
+      query: { apiPort: String(apiPort) },
+    });
   }
+
+  return win;
 }
 
-app.whenReady().then(() => {
-  const appRoot = isDev ? process.cwd() : path.join(__dirname, "..");
-  startServer(appRoot);
+app.whenReady().then(async () => {
+  const appRoot = app.isPackaged ? path.join(__dirname, "..") : process.cwd();
+  const userDataDir = app.isPackaged ? app.getPath("userData") : undefined;
+  apiPort = await startServer(appRoot, userDataDir);
   createWindow();
 
   app.on("activate", () => {

@@ -1,6 +1,15 @@
 import { useState, useCallback, useEffect } from "react";
 import type { Pattern, PatternMeta, PatternListResponse } from "../engine/types";
 
+function getApiBase(): string {
+  const params = new URLSearchParams(window.location.search);
+  const port = params.get("apiPort");
+  if (port) return `http://localhost:${port}`;
+  return "";
+}
+
+const API_BASE = getApiBase();
+
 export interface UsePatternsReturn {
   samples: PatternMeta[];
   userPatterns: PatternMeta[];
@@ -21,10 +30,10 @@ export function usePatterns(): UsePatternsReturn {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/patterns");
+      const res = await fetch(`${API_BASE}/api/patterns`);
       const data: PatternListResponse = await res.json();
-      setSamples(data.samples);
-      setUserPatterns(data.user);
+      setSamples(data.samples ?? []);
+      setUserPatterns(data.user ?? []);
     } catch (err) {
       console.error("Failed to fetch patterns:", err);
     } finally {
@@ -34,7 +43,7 @@ export function usePatterns(): UsePatternsReturn {
 
   const loadPattern = useCallback(
     async (source: string, filename: string): Promise<Pattern> => {
-      const res = await fetch(`/api/patterns/${source}/${filename}`);
+      const res = await fetch(`${API_BASE}/api/patterns/${source}/${filename}`);
       if (!res.ok) throw new Error("Failed to load pattern");
       return res.json();
     },
@@ -45,7 +54,7 @@ export function usePatterns(): UsePatternsReturn {
     async (
       pattern: Omit<Pattern, "createdAt" | "updatedAt">
     ): Promise<Pattern> => {
-      const res = await fetch("/api/patterns", {
+      const res = await fetch(`${API_BASE}/api/patterns`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pattern),
@@ -63,7 +72,7 @@ export function usePatterns(): UsePatternsReturn {
 
   const deletePattern = useCallback(
     async (filename: string): Promise<void> => {
-      const res = await fetch(`/api/patterns/${filename}`, {
+      const res = await fetch(`${API_BASE}/api/patterns/${filename}`, {
         method: "DELETE",
       });
       if (!res.ok && res.status !== 204) {

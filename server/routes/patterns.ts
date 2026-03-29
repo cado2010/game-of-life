@@ -4,14 +4,17 @@ import path from "path";
 
 const router = Router();
 
-function getPatternsDir() {
-  return process.env.PATTERNS_ROOT ?? path.resolve(process.cwd(), "patterns");
-}
 function getSamplesDir() {
-  return path.join(getPatternsDir(), "samples");
+  return (
+    process.env.SAMPLES_DIR ??
+    path.resolve(process.cwd(), "patterns", "samples")
+  );
 }
 function getUserDir() {
-  return path.join(getPatternsDir(), "user");
+  return (
+    process.env.USER_PATTERNS_DIR ??
+    path.resolve(process.cwd(), "patterns", "user")
+  );
 }
 
 function slugify(name: string): string {
@@ -22,19 +25,31 @@ function slugify(name: string): string {
     .replace(/\s+/g, "-");
 }
 
-async function ensureDir(dir: string) {
-  await fs.mkdir(dir, { recursive: true });
+async function ensureWritableDir(dir: string) {
+  try {
+    await fs.mkdir(dir, { recursive: true });
+  } catch {
+    // Ignore — directory may be in a read-only filesystem (ASAR)
+  }
+}
+
+async function safeReaddir(dir: string): Promise<string[]> {
+  try {
+    return await fs.readdir(dir);
+  } catch {
+    return [];
+  }
 }
 
 router.get("/", async (_req, res) => {
   try {
     const samplesDir = getSamplesDir();
     const userDir = getUserDir();
-    await ensureDir(samplesDir);
-    await ensureDir(userDir);
 
-    const sampleFiles = await fs.readdir(samplesDir);
-    const userFiles = await fs.readdir(userDir);
+    await ensureWritableDir(userDir);
+
+    const sampleFiles = await safeReaddir(samplesDir);
+    const userFiles = await safeReaddir(userDir);
 
     const samples = await Promise.all(
       sampleFiles
@@ -104,7 +119,7 @@ router.post("/", async (req, res) => {
     }
 
     const userDir = getUserDir();
-    await ensureDir(userDir);
+    await ensureWritableDir(userDir);
     const filename = slugify(name) + ".json";
     const filePath = path.join(userDir, filename);
 
