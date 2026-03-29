@@ -77,10 +77,10 @@ export function Toolbar({
         <input
           type="range"
           min={20}
-          max={2000}
+          max={1200}
           step={10}
-          value={2020 - speed}
-          onChange={(e) => onSetSpeed(2020 - Number(e.target.value))}
+          value={1220 - speed}
+          onChange={(e) => onSetSpeed(1220 - Number(e.target.value))}
           className="w-24 accent-cyan-500"
         />
         <span className="text-xs text-gray-500 w-14 text-right">
