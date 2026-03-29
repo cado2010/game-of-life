@@ -56,14 +56,14 @@ export function PopulationGraph({
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, width, height);
 
-    const fontSize = Math.max(7, Math.round(height * 0.14));
+    const fontSize = Math.min(12, Math.max(7, Math.round(height * 0.14)));
     ctx.font = `${fontSize}px monospace`;
     ctx.textBaseline = "middle";
 
-    const marginLeft = 30;
-    const marginRight = 6;
-    const marginTop = 4;
-    const marginBottom = fontSize + 6;
+    const marginLeft = Math.max(30, fontSize * 4);
+    const marginRight = Math.max(6, fontSize);
+    const marginTop = Math.max(4, fontSize);
+    const marginBottom = fontSize + 8;
 
     const graphW = width - marginLeft - marginRight;
     const graphH = height - marginTop - marginBottom;
@@ -83,7 +83,8 @@ export function PopulationGraph({
     const toX = (i: number) =>
       marginLeft + (i / (history.length - 1)) * graphW;
 
-    const yStep = niceStep(popRange, 3);
+    const yTicks = Math.max(3, Math.min(8, Math.floor(graphH / 30)));
+    const yStep = niceStep(popRange, yTicks);
     const yStart = Math.ceil(minPop / yStep) * yStep;
 
     ctx.fillStyle = LABEL_COLOR;
@@ -106,7 +107,8 @@ export function PopulationGraph({
     }
 
     const endGen = startGeneration + history.length - 1;
-    const xStep = niceStep(history.length, 4);
+    const xTicks = Math.max(4, Math.min(10, Math.floor(graphW / 50)));
+    const xStep = niceStep(history.length, xTicks);
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
 
@@ -132,7 +134,7 @@ export function PopulationGraph({
     const lastX = toX(history.length - 1);
     ctx.fillText(String(endGen), lastX, marginTop + graphH + 2);
 
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = height > 100 ? 2 : 1.5;
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
 
