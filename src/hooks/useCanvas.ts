@@ -188,6 +188,12 @@ export function useCanvas({
     if (!canvas) return;
 
     function handleMouseDown(e: MouseEvent) {
+      if (editModeRef.current && e.button === 2) {
+        isDraggingRef.current = true;
+        lastMouseRef.current = { x: e.clientX, y: e.clientY };
+        return;
+      }
+
       if (e.button !== 0) return;
 
       if (editModeRef.current) {
@@ -204,6 +210,10 @@ export function useCanvas({
         isDraggingRef.current = true;
         lastMouseRef.current = { x: e.clientX, y: e.clientY };
       }
+    }
+
+    function handleContextMenu(e: MouseEvent) {
+      if (editModeRef.current) e.preventDefault();
     }
 
     function handleMouseMove(e: MouseEvent) {
@@ -286,6 +296,7 @@ export function useCanvas({
     canvas.addEventListener("mouseup", handleMouseUp);
     canvas.addEventListener("mouseleave", handleMouseLeave);
     canvas.addEventListener("wheel", handleWheel, { passive: false });
+    canvas.addEventListener("contextmenu", handleContextMenu);
 
     return () => {
       canvas.removeEventListener("mousedown", handleMouseDown);
@@ -293,6 +304,7 @@ export function useCanvas({
       canvas.removeEventListener("mouseup", handleMouseUp);
       canvas.removeEventListener("mouseleave", handleMouseLeave);
       canvas.removeEventListener("wheel", handleWheel);
+      canvas.removeEventListener("contextmenu", handleContextMenu);
     };
   }, [screenToGrid, onCellToggle]);
 
