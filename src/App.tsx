@@ -6,7 +6,7 @@ import { StatusBar } from "./components/StatusBar";
 import { useGameEngine } from "./hooks/useGameEngine";
 import { usePatterns } from "./hooks/usePatterns";
 
-const MAX_HISTORY = 200;
+const MAX_HISTORY = 100;
 
 export function App() {
   const engine = useGameEngine();
