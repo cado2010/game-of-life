@@ -14,6 +14,7 @@ export interface UseGameEngineReturn {
   stop: () => void;
   setSpeed: (ms: number) => void;
   toggleCell: (col: number, row: number) => void;
+  setCell: (col: number, row: number, alive: boolean) => void;
   clear: () => void;
   loadCells: (cells: [number, number][]) => void;
   getLiveCells: () => [number, number][];
@@ -89,6 +90,14 @@ export function useGameEngine(): UseGameEngineReturn {
     [sync]
   );
 
+  const setCell = useCallback(
+    (col: number, row: number, alive: boolean) => {
+      engineRef.current.setCell(col, row, alive);
+      sync();
+    },
+    [sync]
+  );
+
   const clear = useCallback(() => {
     stopInternal();
     engineRef.current.clear();
@@ -128,6 +137,7 @@ export function useGameEngine(): UseGameEngineReturn {
     stop,
     setSpeed,
     toggleCell,
+    setCell,
     clear,
     loadCells,
     getLiveCells,

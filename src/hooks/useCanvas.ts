@@ -6,6 +6,7 @@ interface UseCanvasOptions {
   liveCells: Set<CellKey>;
   editMode: boolean;
   onCellToggle: (col: number, row: number) => void;
+  onCellSet: (col: number, row: number, alive: boolean) => void;
 }
 
 export interface UseCanvasReturn {
@@ -28,6 +29,7 @@ export function useCanvas({
   liveCells,
   editMode,
   onCellToggle,
+  onCellSet,
 }: UseCanvasOptions): UseCanvasReturn {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [cursorGridPos, setCursorGridPos] = useState<{
@@ -38,11 +40,16 @@ export function useCanvas({
   const offsetRef = useRef({ x: 0, y: 0 });
   const cellSizeRef = useRef(DEFAULT_CELL_SIZE);
   const isDraggingRef = useRef(false);
+  const isEditDraggingRef = useRef(false);
+  const editPaintValueRef = useRef(true);
+  const lastEditCellRef = useRef<{ col: number; row: number } | null>(null);
   const lastMouseRef = useRef({ x: 0, y: 0 });
   const liveCellsRef = useRef(liveCells);
   const editModeRef = useRef(editMode);
   const cursorScreenRef = useRef<{ x: number; y: number } | null>(null);
   const animFrameRef = useRef(0);
+  const onCellSetRef = useRef(onCellSet);
+  onCellSetRef.current = onCellSet;
 
   liveCellsRef.current = liveCells;
   editModeRef.current = editMode;
@@ -188,7 +195,11 @@ export function useCanvas({
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
         const { col, row } = screenToGrid(sx, sy);
+        const wasAlive = liveCellsRef.current.has(`${col},${row}` as import("../engine/types").CellKey);
+        editPaintValueRef.current = !wasAlive;
         onCellToggle(col, row);
+        isEditDraggingRef.current = true;
+        lastEditCellRef.current = { col, row };
       } else {
         isDraggingRef.current = true;
         lastMouseRef.current = { x: e.clientX, y: e.clientY };
@@ -203,7 +214,28 @@ export function useCanvas({
       const gridPos = screenToGrid(sx, sy);
       setCursorGridPos(gridPos);
 
-      if (isDraggingRef.current) {
+      if (isEditDraggingRef.current) {
+        const last = lastEditCellRef.current;
+        if (!last || gridPos.col !== last.col || gridPos.row !== last.row) {
+          if (last) {
+            let x0 = last.col, y0 = last.row;
+            const x1 = gridPos.col, y1 = gridPos.row;
+            const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+            const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+            let err = dx + dy;
+            while (true) {
+              onCellSetRef.current(x0, y0, editPaintValueRef.current);
+              if (x0 === x1 && y0 === y1) break;
+              const e2 = 2 * err;
+              if (e2 >= dy) { err += dy; x0 += sx; }
+              if (e2 <= dx) { err += dx; y0 += sy; }
+            }
+          } else {
+            onCellSetRef.current(gridPos.col, gridPos.row, editPaintValueRef.current);
+          }
+          lastEditCellRef.current = { col: gridPos.col, row: gridPos.row };
+        }
+      } else if (isDraggingRef.current) {
         const dx = e.clientX - lastMouseRef.current.x;
         const dy = e.clientY - lastMouseRef.current.y;
         offsetRef.current = {
@@ -216,10 +248,14 @@ export function useCanvas({
 
     function handleMouseUp() {
       isDraggingRef.current = false;
+      isEditDraggingRef.current = false;
+      lastEditCellRef.current = null;
     }
 
     function handleMouseLeave() {
       isDraggingRef.current = false;
+      isEditDraggingRef.current = false;
+      lastEditCellRef.current = null;
       cursorScreenRef.current = null;
       setCursorGridPos(null);
     }

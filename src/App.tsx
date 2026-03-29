@@ -48,6 +48,7 @@ export function App() {
           liveCells={engine.liveCells}
           editMode={editMode}
           onCellToggle={engine.toggleCell}
+          onCellSet={engine.setCell}
           onCursorMove={handleCursorMove}
           onResetViewReady={handleResetViewReady}
         />

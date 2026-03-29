@@ -6,6 +6,7 @@ interface GridCanvasProps {
   liveCells: Set<CellKey>;
   editMode: boolean;
   onCellToggle: (col: number, row: number) => void;
+  onCellSet: (col: number, row: number, alive: boolean) => void;
   onCursorMove: (pos: { col: number; row: number } | null) => void;
   onResetViewReady: (resetFn: () => void) => void;
 }
@@ -14,6 +15,7 @@ export function GridCanvas({
   liveCells,
   editMode,
   onCellToggle,
+  onCellSet,
   onCursorMove,
   onResetViewReady,
 }: GridCanvasProps) {
@@ -21,6 +23,7 @@ export function GridCanvas({
     liveCells,
     editMode,
     onCellToggle,
+    onCellSet,
   });
 
   useEffect(() => {
@@ -39,7 +42,7 @@ export function GridCanvas({
       />
       {editMode && (
         <div className="absolute top-3 left-3 px-2 py-1 bg-cyan-900/80 text-cyan-200 text-xs font-medium rounded">
-          EDIT MODE — click to toggle cells
+          EDIT MODE — click or drag to draw
         </div>
       )}
     </div>
