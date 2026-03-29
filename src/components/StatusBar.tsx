@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { PopulationGraph } from "./PopulationGraph";
 import { PopulationGraphPopup } from "./PopulationGraphPopup";
 
@@ -12,6 +12,15 @@ interface StatusBarProps {
 
 export function StatusBar({ generation, population, cursorPos, popHistory, popHistoryStartGen }: StatusBarProps) {
   const [popupOpen, setPopupOpen] = useState(false);
+  const [recenterSignal, setRecenterSignal] = useState(0);
+
+  const handleDoubleClick = useCallback(() => {
+    if (popupOpen) {
+      setRecenterSignal((n) => n + 1);
+    } else {
+      setPopupOpen(true);
+    }
+  }, [popupOpen]);
 
   return (
     <>
@@ -30,8 +39,8 @@ export function StatusBar({ generation, population, cursorPos, popHistory, popHi
         </span>
         <div
           className="ml-auto flex items-center gap-2 cursor-pointer"
-          onDoubleClick={() => setPopupOpen(true)}
-          title="Double-click to enlarge"
+          onDoubleClick={handleDoubleClick}
+          title={popupOpen ? "Double-click to recenter popup" : "Double-click to enlarge"}
         >
           <PopulationGraph history={popHistory} startGeneration={popHistoryStartGen} width={240} height={56} />
         </div>
@@ -41,6 +50,7 @@ export function StatusBar({ generation, population, cursorPos, popHistory, popHi
         <PopulationGraphPopup
           history={popHistory}
           startGeneration={popHistoryStartGen}
+          recenterSignal={recenterSignal}
           onClose={() => setPopupOpen(false)}
         />
       )}

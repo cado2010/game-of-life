@@ -4,28 +4,57 @@ import { PopulationGraph } from "./PopulationGraph";
 interface PopulationGraphPopupProps {
   history: number[];
   startGeneration: number;
+  recenterSignal: number;
   onClose: () => void;
 }
 
 const MIN_W = 300;
 const MIN_H = 180;
+const EDGE_MARGIN = 40;
+
+function clampPos(x: number, y: number, w: number, h: number) {
+  return {
+    x: Math.max(-w + EDGE_MARGIN, Math.min(window.innerWidth - EDGE_MARGIN, x)),
+    y: Math.max(0, Math.min(window.innerHeight - EDGE_MARGIN, y)),
+  };
+}
 
 export function PopulationGraphPopup({
   history,
   startGeneration,
+  recenterSignal,
   onClose,
 }: PopulationGraphPopupProps) {
   const popupRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ w: 520, h: 280 });
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Center on first render
-  useEffect(() => {
+  const centerPopup = useCallback((w: number, h: number) => {
     setPos({
-      x: Math.max(0, Math.floor((window.innerWidth - size.w) / 2)),
-      y: Math.max(0, Math.floor((window.innerHeight - size.h) / 2)),
+      x: Math.max(0, Math.floor((window.innerWidth - w) / 2)),
+      y: Math.max(0, Math.floor((window.innerHeight - h) / 2)),
     });
   }, []);
+
+  useEffect(() => {
+    centerPopup(size.w, size.h);
+  }, []);
+
+  // Recenter when signal changes (double-click graph while already open)
+  useEffect(() => {
+    if (recenterSignal > 0) {
+      centerPopup(size.w, size.h);
+    }
+  }, [recenterSignal, centerPopup, size.w, size.h]);
+
+  // Escape key to close
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
 
   // Dragging the title bar
   const isDragging = useRef(false);
@@ -54,10 +83,11 @@ export function PopulationGraphPopup({
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
       if (isDragging.current) {
-        setPos({
+        const raw = {
           x: e.clientX - dragOffset.current.x,
           y: e.clientY - dragOffset.current.y,
-        });
+        };
+        setPos((prev) => clampPos(raw.x, raw.y, prev ? size.w : 520, 30));
       }
       if (isResizing.current) {
         const dx = e.clientX - resizeStart.current.x;
@@ -78,7 +108,7 @@ export function PopulationGraphPopup({
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, []);
+  }, [size]);
 
   if (!pos) return null;
 
