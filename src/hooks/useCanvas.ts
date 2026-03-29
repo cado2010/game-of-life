@@ -27,7 +27,13 @@ const DEFAULT_CELL_SIZE = 20;
 
 const GRID_LINE_COLOR = "rgba(55, 65, 81, 0.5)";
 const GRID_MAJOR_COLOR = "rgba(75, 85, 99, 0.7)";
-const CELL_COLOR = "#22d3ee";
+const CELL_COLORS: [number, string][] = [
+  [20, "#22d3ee"],  // normal zoom: cyan
+  [10, "#34d399"],  // medium-far: emerald green
+  [5,  "#facc15"],  // far: yellow
+  [2,  "#fb923c"],  // very far: orange
+  [0,  "#f87171"],  // extreme: bright red
+];
 const CURSOR_COLOR = "rgba(34, 211, 238, 0.3)";
 const PREVIEW_COLOR = "rgba(34, 211, 238, 0.45)";
 const ERASE_PREVIEW_COLOR = "rgba(239, 68, 68, 0.35)";
@@ -312,17 +318,23 @@ export function useCanvas({
         ctx!.stroke();
       }
 
-      // Draw live cells
-      ctx!.fillStyle = CELL_COLOR;
-      const pad = Math.max(1, cs * 0.05);
+      // Adaptive cell color based on zoom level
+      let cellColor = CELL_COLORS[CELL_COLORS.length - 1][1];
+      for (const [threshold, color] of CELL_COLORS) {
+        if (cs >= threshold) { cellColor = color; break; }
+      }
+      ctx!.fillStyle = cellColor;
+
+      const pad = cs >= 6 ? Math.max(1, cs * 0.05) : 0;
+      const cellDraw = cs < 3 ? Math.max(cs, 1.5) : cs - pad * 2;
       for (const key of liveCellsRef.current) {
         const [col, row] = parseKey(key);
         if (col >= startCol && col <= endCol && row >= startRow && row <= endRow) {
           ctx!.fillRect(
             col * cs + ox + pad,
             row * cs + oy + pad,
-            cs - pad * 2,
-            cs - pad * 2
+            cellDraw,
+            cellDraw
           );
         }
       }
