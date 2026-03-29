@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useCanvas } from "../hooks/useCanvas";
 import type { CellKey } from "../engine/types";
 
@@ -6,7 +7,7 @@ interface GridCanvasProps {
   editMode: boolean;
   onCellToggle: (col: number, row: number) => void;
   onCursorMove: (pos: { col: number; row: number } | null) => void;
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  onResetViewReady: (resetFn: () => void) => void;
 }
 
 export function GridCanvas({
@@ -14,26 +15,21 @@ export function GridCanvas({
   editMode,
   onCellToggle,
   onCursorMove,
-  canvasRef: externalRef,
+  onResetViewReady,
 }: GridCanvasProps) {
-  const { canvasRef, cursorGridPos } = useCanvas({
+  const { canvasRef, cursorGridPos, resetView } = useCanvas({
     liveCells,
     editMode,
     onCellToggle,
   });
 
-  // Sync internal ref to external
-  if (externalRef && "current" in externalRef) {
-    (externalRef as React.MutableRefObject<HTMLCanvasElement | null>).current =
-      canvasRef.current;
-  }
+  useEffect(() => {
+    onResetViewReady(resetView);
+  }, [resetView, onResetViewReady]);
 
-  // Report cursor position upward
-  if (onCursorMove) {
-    // Using a simple effect-like approach — check on every render
-    const cur = cursorGridPos;
-    queueMicrotask(() => onCursorMove(cur));
-  }
+  useEffect(() => {
+    onCursorMove(cursorGridPos);
+  }, [cursorGridPos, onCursorMove]);
 
   return (
     <div className="relative flex-1 overflow-hidden">

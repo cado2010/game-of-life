@@ -14,7 +14,6 @@ export function App() {
     col: number;
     row: number;
   } | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const resetViewRef = useRef<(() => void) | null>(null);
 
   const handleCursorMove = useCallback(
@@ -23,6 +22,10 @@ export function App() {
     },
     []
   );
+
+  const handleResetViewReady = useCallback((resetFn: () => void) => {
+    resetViewRef.current = resetFn;
+  }, []);
 
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-gray-100">
@@ -46,7 +49,7 @@ export function App() {
           editMode={editMode}
           onCellToggle={engine.toggleCell}
           onCursorMove={handleCursorMove}
-          canvasRef={canvasRef}
+          onResetViewReady={handleResetViewReady}
         />
 
         <PatternPanel
