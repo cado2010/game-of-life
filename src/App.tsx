@@ -77,6 +77,7 @@ export function App() {
           onShapeToolChange={setShapeTool}
           onCellToggle={engine.toggleCell}
           onCellSet={engine.setCell}
+          onSetCells={engine.setCells}
           onCursorMove={handleCursorMove}
           onResetViewReady={handleResetViewReady}
         />

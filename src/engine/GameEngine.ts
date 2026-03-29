@@ -61,6 +61,14 @@ export class GameEngine {
     }
   }
 
+  setCells(cells: [number, number][], alive: boolean): void {
+    if (alive) {
+      for (const [col, row] of cells) this.liveCells.add(toKey(col, row));
+    } else {
+      for (const [col, row] of cells) this.liveCells.delete(toKey(col, row));
+    }
+  }
+
   isAlive(col: number, row: number): boolean {
     return this.liveCells.has(toKey(col, row));
   }

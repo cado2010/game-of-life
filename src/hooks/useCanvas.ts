@@ -9,6 +9,7 @@ interface UseCanvasOptions {
   shapeTool: ShapeTool;
   onCellToggle: (col: number, row: number) => void;
   onCellSet: (col: number, row: number, alive: boolean) => void;
+  onSetCells: (cells: [number, number][], alive: boolean) => void;
 }
 
 export interface UseCanvasReturn {
@@ -160,6 +161,7 @@ export function useCanvas({
   shapeTool,
   onCellToggle,
   onCellSet,
+  onSetCells,
 }: UseCanvasOptions): UseCanvasReturn {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [cursorGridPos, setCursorGridPos] = useState<{
@@ -181,15 +183,17 @@ export function useCanvas({
   const animFrameRef = useRef(0);
   const onCellSetRef = useRef(onCellSet);
   const onCellToggleRef = useRef(onCellToggle);
+  const onSetCellsRef = useRef(onSetCells);
 
   // Shape drag state
   const isShapeDraggingRef = useRef(false);
   const shapeStartRef = useRef<{ col: number; row: number } | null>(null);
-  const shapePreviewRef = useRef<[number, number][]>([]);
+  const shapeEndRef = useRef<{ col: number; row: number } | null>(null);
   const shapePaintValueRef = useRef(true);
 
   onCellSetRef.current = onCellSet;
   onCellToggleRef.current = onCellToggle;
+  onSetCellsRef.current = onSetCells;
   liveCellsRef.current = liveCells;
   editModeRef.current = editMode;
   shapeToolRef.current = shapeTool;
@@ -302,11 +306,39 @@ export function useCanvas({
       }
 
       // Draw shape preview
-      if (isShapeDraggingRef.current && shapePreviewRef.current.length > 0) {
+      if (isShapeDraggingRef.current && shapeStartRef.current && shapeEndRef.current) {
         ctx!.fillStyle = shapePaintValueRef.current ? PREVIEW_COLOR : ERASE_PREVIEW_COLOR;
-        for (const [col, row] of shapePreviewRef.current) {
-          if (col >= startCol && col <= endCol && row >= startRow && row <= endRow) {
-            ctx!.fillRect(col * cs + ox, row * cs + oy, cs, cs);
+        const tool = shapeToolRef.current;
+        const s = shapeStartRef.current;
+        const e = shapeEndRef.current;
+
+        if (tool === "filled-rect" || tool === "filled-ellipse") {
+          const minC = Math.max(Math.min(s.col, e.col), startCol);
+          const maxC = Math.min(Math.max(s.col, e.col), endCol);
+          const minR = Math.max(Math.min(s.row, e.row), startRow);
+          const maxR = Math.min(Math.max(s.row, e.row), endRow);
+
+          if (tool === "filled-rect") {
+            for (let c = minC; c <= maxC; c++)
+              for (let r = minR; r <= maxR; r++)
+                ctx!.fillRect(c * cs + ox, r * cs + oy, cs, cs);
+          } else {
+            const cxE = (Math.min(s.col, e.col) + Math.max(s.col, e.col)) / 2;
+            const cyE = (Math.min(s.row, e.row) + Math.max(s.row, e.row)) / 2;
+            const rxE = (Math.max(s.col, e.col) - Math.min(s.col, e.col)) / 2 || 0.5;
+            const ryE = (Math.max(s.row, e.row) - Math.min(s.row, e.row)) / 2 || 0.5;
+            for (let c = minC; c <= maxC; c++)
+              for (let r = minR; r <= maxR; r++) {
+                const dx = (c - cxE) / rxE, dy = (r - cyE) / ryE;
+                if (dx * dx + dy * dy <= 1.0001)
+                  ctx!.fillRect(c * cs + ox, r * cs + oy, cs, cs);
+              }
+          }
+        } else {
+          const previewCells = computeShapeCells(tool, s, e);
+          for (const [col, row] of previewCells) {
+            if (col >= startCol && col <= endCol && row >= startRow && row <= endRow)
+              ctx!.fillRect(col * cs + ox, row * cs + oy, cs, cs);
           }
         }
       }
@@ -367,7 +399,7 @@ export function useCanvas({
           shapePaintValueRef.current = paintOn;
           isShapeDraggingRef.current = true;
           shapeStartRef.current = { col, row };
-          shapePreviewRef.current = [[col, row]];
+          shapeEndRef.current = { col, row };
         }
       } else {
         isDraggingRef.current = true;
@@ -388,11 +420,7 @@ export function useCanvas({
       setCursorGridPos(gridPos);
 
       if (isShapeDraggingRef.current && shapeStartRef.current) {
-        shapePreviewRef.current = computeShapeCells(
-          shapeToolRef.current,
-          shapeStartRef.current,
-          gridPos
-        );
+        shapeEndRef.current = gridPos;
       } else if (isEditDraggingRef.current) {
         const last = lastEditCellRef.current;
         if (!last || gridPos.col !== last.col || gridPos.row !== last.row) {
@@ -418,14 +446,17 @@ export function useCanvas({
     }
 
     function handleMouseUp() {
-      // Stamp shape preview onto the grid
-      if (isShapeDraggingRef.current && shapePreviewRef.current.length > 0) {
-        const paintOn = shapePaintValueRef.current;
-        for (const [col, row] of shapePreviewRef.current) {
-          onCellSetRef.current(col, row, paintOn);
+      if (isShapeDraggingRef.current && shapeStartRef.current && shapeEndRef.current) {
+        const cells = computeShapeCells(
+          shapeToolRef.current,
+          shapeStartRef.current,
+          shapeEndRef.current
+        );
+        if (cells.length > 0) {
+          onSetCellsRef.current(cells, shapePaintValueRef.current);
         }
-        shapePreviewRef.current = [];
         shapeStartRef.current = null;
+        shapeEndRef.current = null;
       }
 
       isDraggingRef.current = false;
@@ -438,8 +469,8 @@ export function useCanvas({
       isDraggingRef.current = false;
       isEditDraggingRef.current = false;
       isShapeDraggingRef.current = false;
-      shapePreviewRef.current = [];
       shapeStartRef.current = null;
+      shapeEndRef.current = null;
       lastEditCellRef.current = null;
       cursorScreenRef.current = null;
       setCursorGridPos(null);

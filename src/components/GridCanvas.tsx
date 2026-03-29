@@ -10,6 +10,7 @@ interface GridCanvasProps {
   onShapeToolChange: (tool: ShapeTool) => void;
   onCellToggle: (col: number, row: number) => void;
   onCellSet: (col: number, row: number, alive: boolean) => void;
+  onSetCells: (cells: [number, number][], alive: boolean) => void;
   onCursorMove: (pos: { col: number; row: number } | null) => void;
   onResetViewReady: (resetFn: () => void) => void;
 }
@@ -21,6 +22,7 @@ export function GridCanvas({
   onShapeToolChange,
   onCellToggle,
   onCellSet,
+  onSetCells,
   onCursorMove,
   onResetViewReady,
 }: GridCanvasProps) {
@@ -30,6 +32,7 @@ export function GridCanvas({
     shapeTool,
     onCellToggle,
     onCellSet,
+    onSetCells,
   });
 
   useEffect(() => {
