@@ -110,6 +110,29 @@ function ellipseOutline(
   return pts;
 }
 
+function filledEllipse(
+  c0: number, r0: number, c1: number, r1: number
+): [number, number][] {
+  const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
+  const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
+  const cx = (minC + maxC) / 2;
+  const cy = (minR + maxR) / 2;
+  const rx = (maxC - minC) / 2;
+  const ry = (maxR - minR) / 2;
+
+  const pts: [number, number][] = [];
+  for (let r = minR; r <= maxR; r++) {
+    for (let c = minC; c <= maxC; c++) {
+      const dx = (c - cx) / (rx || 0.5);
+      const dy = (r - cy) / (ry || 0.5);
+      if (dx * dx + dy * dy <= 1.0001) {
+        pts.push([c, r]);
+      }
+    }
+  }
+  return pts;
+}
+
 function computeShapeCells(
   tool: ShapeTool,
   start: { col: number; row: number },
@@ -124,6 +147,8 @@ function computeShapeCells(
       return filledRect(start.col, start.row, end.col, end.row);
     case "ellipse":
       return ellipseOutline(start.col, start.row, end.col, end.row);
+    case "filled-ellipse":
+      return filledEllipse(start.col, start.row, end.col, end.row);
     default:
       return [];
   }

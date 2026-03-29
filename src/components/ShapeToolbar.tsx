@@ -1,4 +1,4 @@
-export type ShapeTool = "freeform" | "line" | "rect" | "filled-rect" | "ellipse";
+export type ShapeTool = "freeform" | "line" | "rect" | "filled-rect" | "ellipse" | "filled-ellipse";
 
 interface ShapeToolbarProps {
   activeTool: ShapeTool;
@@ -11,6 +11,7 @@ const tools: { id: ShapeTool; label: string; icon: string }[] = [
   { id: "rect", label: "Rectangle", icon: "▭" },
   { id: "filled-rect", label: "Filled Rect", icon: "■" },
   { id: "ellipse", label: "Ellipse", icon: "◯" },
+  { id: "filled-ellipse", label: "Filled Ellipse", icon: "●" },
 ];
 
 export function ShapeToolbar({ activeTool, onSelectTool }: ShapeToolbarProps) {
