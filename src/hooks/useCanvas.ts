@@ -15,6 +15,9 @@ interface UseCanvasOptions {
 export interface UseCanvasReturn {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   cursorGridPos: { col: number; row: number } | null;
+  isPasting: boolean;
+  hasClipboard: boolean;
+  cancelPaste: () => void;
   resetView: () => void;
 }
 
@@ -28,6 +31,9 @@ const CELL_COLOR = "#22d3ee";
 const CURSOR_COLOR = "rgba(34, 211, 238, 0.3)";
 const PREVIEW_COLOR = "rgba(34, 211, 238, 0.45)";
 const ERASE_PREVIEW_COLOR = "rgba(239, 68, 68, 0.35)";
+const SELECT_BORDER_COLOR = "rgba(250, 204, 21, 0.8)";
+const SELECT_FILL_COLOR = "rgba(250, 204, 21, 0.08)";
+const PASTE_PREVIEW_COLOR = "rgba(250, 204, 21, 0.5)";
 const BG_COLOR = "#030712";
 
 // --- shape geometry helpers ---
@@ -191,6 +197,16 @@ export function useCanvas({
   const shapeEndRef = useRef<{ col: number; row: number } | null>(null);
   const shapePaintValueRef = useRef(true);
 
+  // Selection / copy-paste state
+  const isSelectingRef = useRef(false);
+  const selectStartRef = useRef<{ col: number; row: number } | null>(null);
+  const selectEndRef = useRef<{ col: number; row: number } | null>(null);
+  // Clipboard: cells relative to (0,0) origin
+  const clipboardRef = useRef<[number, number][]>([]);
+  const [isPasting, setIsPasting] = useState(false);
+  const isPastingRef = useRef(false);
+  const [hasClipboard, setHasClipboard] = useState(false);
+
   onCellSetRef.current = onCellSet;
   onCellToggleRef.current = onCellToggle;
   onSetCellsRef.current = onSetCells;
@@ -207,6 +223,11 @@ export function useCanvas({
     };
   }, []);
 
+  const cancelPaste = useCallback(() => {
+    isPastingRef.current = false;
+    setIsPasting(false);
+  }, []);
+
   const resetView = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -217,6 +238,7 @@ export function useCanvas({
     };
   }, []);
 
+  // --- Draw loop ---
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -343,8 +365,50 @@ export function useCanvas({
         }
       }
 
-      // Draw cursor highlight in edit mode
-      if (editModeRef.current && cursorScreenRef.current && !isShapeDraggingRef.current) {
+      // Draw selection rectangle
+      if (isSelectingRef.current && selectStartRef.current && selectEndRef.current) {
+        const s = selectStartRef.current;
+        const e = selectEndRef.current;
+        const minC = Math.min(s.col, e.col);
+        const maxC = Math.max(s.col, e.col);
+        const minR = Math.min(s.row, e.row);
+        const maxR = Math.max(s.row, e.row);
+        const sx = minC * cs + ox;
+        const sy = minR * cs + oy;
+        const sw = (maxC - minC + 1) * cs;
+        const sh = (maxR - minR + 1) * cs;
+
+        ctx!.fillStyle = SELECT_FILL_COLOR;
+        ctx!.fillRect(sx, sy, sw, sh);
+        ctx!.strokeStyle = SELECT_BORDER_COLOR;
+        ctx!.lineWidth = 2;
+        ctx!.setLineDash([6, 3]);
+        ctx!.strokeRect(sx, sy, sw, sh);
+        ctx!.setLineDash([]);
+        ctx!.lineWidth = 0.5;
+      }
+
+      // Draw paste preview
+      if (isPastingRef.current && cursorScreenRef.current && clipboardRef.current.length > 0) {
+        const cursor = screenToGrid(cursorScreenRef.current.x, cursorScreenRef.current.y);
+        ctx!.fillStyle = PASTE_PREVIEW_COLOR;
+        for (const [dc, dr] of clipboardRef.current) {
+          const c = cursor.col + dc;
+          const r = cursor.row + dr;
+          if (c >= startCol && c <= endCol && r >= startRow && r <= endRow) {
+            ctx!.fillRect(c * cs + ox, r * cs + oy, cs, cs);
+          }
+        }
+      }
+
+      // Draw cursor highlight in edit mode (not during shape/select/paste drag)
+      if (
+        editModeRef.current &&
+        cursorScreenRef.current &&
+        !isShapeDraggingRef.current &&
+        !isSelectingRef.current &&
+        !isPastingRef.current
+      ) {
         const { col, row } = screenToGrid(
           cursorScreenRef.current.x,
           cursorScreenRef.current.y
@@ -364,6 +428,7 @@ export function useCanvas({
     };
   }, [screenToGrid]);
 
+  // --- Mouse & keyboard event handlers ---
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -384,7 +449,25 @@ export function useCanvas({
         const sy = e.clientY - rect.top;
         const { col, row } = screenToGrid(sx, sy);
 
+        // If in paste mode, stamp on click
+        if (isPastingRef.current && clipboardRef.current.length > 0) {
+          const pastedCells: [number, number][] = clipboardRef.current.map(
+            ([dc, dr]) => [col + dc, row + dr]
+          );
+          onSetCellsRef.current(pastedCells, true);
+          return;
+        }
+
         const tool = shapeToolRef.current;
+
+        // Select tool: start selection drag
+        if (tool === "select") {
+          isSelectingRef.current = true;
+          selectStartRef.current = { col, row };
+          selectEndRef.current = { col, row };
+          return;
+        }
+
         const wasAlive = liveCellsRef.current.has(
           `${col},${row}` as CellKey
         );
@@ -419,7 +502,9 @@ export function useCanvas({
       const gridPos = screenToGrid(sx, sy);
       setCursorGridPos(gridPos);
 
-      if (isShapeDraggingRef.current && shapeStartRef.current) {
+      if (isSelectingRef.current) {
+        selectEndRef.current = gridPos;
+      } else if (isShapeDraggingRef.current && shapeStartRef.current) {
         shapeEndRef.current = gridPos;
       } else if (isEditDraggingRef.current) {
         const last = lastEditCellRef.current;
@@ -446,6 +531,37 @@ export function useCanvas({
     }
 
     function handleMouseUp() {
+      // Finish selection → capture clipboard → enter paste mode
+      if (isSelectingRef.current && selectStartRef.current && selectEndRef.current) {
+        const s = selectStartRef.current;
+        const e = selectEndRef.current;
+        const minC = Math.min(s.col, e.col);
+        const maxC = Math.max(s.col, e.col);
+        const minR = Math.min(s.row, e.row);
+        const maxR = Math.max(s.row, e.row);
+
+        const cells: [number, number][] = [];
+        for (const key of liveCellsRef.current) {
+          const [col, row] = parseKey(key);
+          if (col >= minC && col <= maxC && row >= minR && row <= maxR) {
+            cells.push([col - minC, row - minR]);
+          }
+        }
+
+        isSelectingRef.current = false;
+        selectStartRef.current = null;
+        selectEndRef.current = null;
+
+        if (cells.length > 0) {
+          clipboardRef.current = cells;
+          setHasClipboard(true);
+          isPastingRef.current = true;
+          setIsPasting(true);
+        }
+        return;
+      }
+
+      // Stamp shape
       if (isShapeDraggingRef.current && shapeStartRef.current && shapeEndRef.current) {
         const cells = computeShapeCells(
           shapeToolRef.current,
@@ -469,8 +585,11 @@ export function useCanvas({
       isDraggingRef.current = false;
       isEditDraggingRef.current = false;
       isShapeDraggingRef.current = false;
+      isSelectingRef.current = false;
       shapeStartRef.current = null;
       shapeEndRef.current = null;
+      selectStartRef.current = null;
+      selectEndRef.current = null;
       lastEditCellRef.current = null;
       cursorScreenRef.current = null;
       setCursorGridPos(null);
@@ -497,12 +616,20 @@ export function useCanvas({
       cellSizeRef.current = newSize;
     }
 
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && isPastingRef.current) {
+        isPastingRef.current = false;
+        setIsPasting(false);
+      }
+    }
+
     canvas.addEventListener("mousedown", handleMouseDown);
     canvas.addEventListener("mousemove", handleMouseMove);
     canvas.addEventListener("mouseup", handleMouseUp);
     canvas.addEventListener("mouseleave", handleMouseLeave);
     canvas.addEventListener("wheel", handleWheel, { passive: false });
     canvas.addEventListener("contextmenu", handleContextMenu);
+    window.addEventListener("keydown", handleKeyDown);
 
     return () => {
       canvas.removeEventListener("mousedown", handleMouseDown);
@@ -511,8 +638,9 @@ export function useCanvas({
       canvas.removeEventListener("mouseleave", handleMouseLeave);
       canvas.removeEventListener("wheel", handleWheel);
       canvas.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [screenToGrid]);
 
-  return { canvasRef, cursorGridPos, resetView };
+  return { canvasRef, cursorGridPos, isPasting, hasClipboard, cancelPaste, resetView };
 }

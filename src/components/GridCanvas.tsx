@@ -15,6 +15,13 @@ interface GridCanvasProps {
   onResetViewReady: (resetFn: () => void) => void;
 }
 
+function statusText(tool: ShapeTool, isPasting: boolean): string {
+  if (isPasting) return "click to paste — Esc to cancel";
+  if (tool === "select") return "drag to select region, then click to paste";
+  if (tool === "freeform") return "click or drag to draw";
+  return `drag to draw ${tool}`;
+}
+
 export function GridCanvas({
   liveCells,
   editMode,
@@ -26,7 +33,7 @@ export function GridCanvas({
   onCursorMove,
   onResetViewReady,
 }: GridCanvasProps) {
-  const { canvasRef, cursorGridPos, resetView } = useCanvas({
+  const { canvasRef, cursorGridPos, isPasting, hasClipboard, cancelPaste, resetView } = useCanvas({
     liveCells,
     editMode,
     shapeTool,
@@ -52,10 +59,19 @@ export function GridCanvas({
       {editMode && (
         <>
           <div className="absolute top-3 left-3 px-2 py-1 bg-cyan-900/80 text-cyan-200 text-xs font-medium rounded">
-            EDIT MODE — {shapeTool === "freeform" ? "click or drag to draw" : `drag to draw ${shapeTool}`}
+            EDIT MODE — {statusText(shapeTool, isPasting)}
           </div>
           <div className="absolute top-3 left-1/2 -translate-x-1/2">
-            <ShapeToolbar activeTool={shapeTool} onSelectTool={onShapeToolChange} />
+            <ShapeToolbar
+              activeTool={shapeTool}
+              isPasting={isPasting}
+              hasClipboard={hasClipboard}
+              onSelectTool={(tool) => {
+                cancelPaste();
+                onShapeToolChange(tool);
+              }}
+              onCancelPaste={cancelPaste}
+            />
           </div>
         </>
       )}
