@@ -1,10 +1,12 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import type { CellKey } from "../engine/types";
 import { parseKey } from "../engine/types";
+import type { ShapeTool } from "../components/ShapeToolbar";
 
 interface UseCanvasOptions {
   liveCells: Set<CellKey>;
   editMode: boolean;
+  shapeTool: ShapeTool;
   onCellToggle: (col: number, row: number) => void;
   onCellSet: (col: number, row: number, alive: boolean) => void;
 }
@@ -23,11 +25,114 @@ const GRID_LINE_COLOR = "rgba(55, 65, 81, 0.5)";
 const GRID_MAJOR_COLOR = "rgba(75, 85, 99, 0.7)";
 const CELL_COLOR = "#22d3ee";
 const CURSOR_COLOR = "rgba(34, 211, 238, 0.3)";
+const PREVIEW_COLOR = "rgba(34, 211, 238, 0.45)";
+const ERASE_PREVIEW_COLOR = "rgba(239, 68, 68, 0.35)";
 const BG_COLOR = "#030712";
+
+// --- shape geometry helpers ---
+
+function bresenhamLine(
+  x0: number, y0: number, x1: number, y1: number
+): [number, number][] {
+  const pts: [number, number][] = [];
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy;
+  let cx = x0, cy = y0;
+  while (true) {
+    pts.push([cx, cy]);
+    if (cx === x1 && cy === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; cx += sx; }
+    if (e2 <= dx) { err += dx; cy += sy; }
+  }
+  return pts;
+}
+
+function rectOutline(
+  c0: number, r0: number, c1: number, r1: number
+): [number, number][] {
+  const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
+  const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
+  const pts: [number, number][] = [];
+  for (let c = minC; c <= maxC; c++) { pts.push([c, minR]); pts.push([c, maxR]); }
+  for (let r = minR + 1; r < maxR; r++) { pts.push([minC, r]); pts.push([maxC, r]); }
+  return pts;
+}
+
+function filledRect(
+  c0: number, r0: number, c1: number, r1: number
+): [number, number][] {
+  const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
+  const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
+  const pts: [number, number][] = [];
+  for (let c = minC; c <= maxC; c++)
+    for (let r = minR; r <= maxR; r++) pts.push([c, r]);
+  return pts;
+}
+
+function ellipseOutline(
+  c0: number, r0: number, c1: number, r1: number
+): [number, number][] {
+  const minC = Math.min(c0, c1), maxC = Math.max(c0, c1);
+  const minR = Math.min(r0, r1), maxR = Math.max(r0, r1);
+  const cx = (minC + maxC) / 2;
+  const cy = (minR + maxR) / 2;
+  const rx = (maxC - minC) / 2;
+  const ry = (maxR - minR) / 2;
+
+  if (rx < 0.5 && ry < 0.5) return [[Math.round(cx), Math.round(cy)]];
+  if (rx < 0.5) {
+    const pts: [number, number][] = [];
+    for (let r = minR; r <= maxR; r++) pts.push([Math.round(cx), r]);
+    return pts;
+  }
+  if (ry < 0.5) {
+    const pts: [number, number][] = [];
+    for (let c = minC; c <= maxC; c++) pts.push([c, Math.round(cy)]);
+    return pts;
+  }
+
+  const set = new Set<string>();
+  const pts: [number, number][] = [];
+  const add = (col: number, row: number) => {
+    const k = `${col},${row}`;
+    if (!set.has(k)) { set.add(k); pts.push([col, row]); }
+  };
+
+  const steps = Math.max(200, Math.ceil(Math.max(rx, ry) * 8));
+  for (let i = 0; i <= steps; i++) {
+    const angle = (2 * Math.PI * i) / steps;
+    const col = Math.round(cx + rx * Math.cos(angle));
+    const row = Math.round(cy + ry * Math.sin(angle));
+    add(col, row);
+  }
+  return pts;
+}
+
+function computeShapeCells(
+  tool: ShapeTool,
+  start: { col: number; row: number },
+  end: { col: number; row: number }
+): [number, number][] {
+  switch (tool) {
+    case "line":
+      return bresenhamLine(start.col, start.row, end.col, end.row);
+    case "rect":
+      return rectOutline(start.col, start.row, end.col, end.row);
+    case "filled-rect":
+      return filledRect(start.col, start.row, end.col, end.row);
+    case "ellipse":
+      return ellipseOutline(start.col, start.row, end.col, end.row);
+    default:
+      return [];
+  }
+}
 
 export function useCanvas({
   liveCells,
   editMode,
+  shapeTool,
   onCellToggle,
   onCellSet,
 }: UseCanvasOptions): UseCanvasReturn {
@@ -46,13 +151,23 @@ export function useCanvas({
   const lastMouseRef = useRef({ x: 0, y: 0 });
   const liveCellsRef = useRef(liveCells);
   const editModeRef = useRef(editMode);
+  const shapeToolRef = useRef(shapeTool);
   const cursorScreenRef = useRef<{ x: number; y: number } | null>(null);
   const animFrameRef = useRef(0);
   const onCellSetRef = useRef(onCellSet);
-  onCellSetRef.current = onCellSet;
+  const onCellToggleRef = useRef(onCellToggle);
 
+  // Shape drag state
+  const isShapeDraggingRef = useRef(false);
+  const shapeStartRef = useRef<{ col: number; row: number } | null>(null);
+  const shapePreviewRef = useRef<[number, number][]>([]);
+  const shapePaintValueRef = useRef(true);
+
+  onCellSetRef.current = onCellSet;
+  onCellToggleRef.current = onCellToggle;
   liveCellsRef.current = liveCells;
   editModeRef.current = editMode;
+  shapeToolRef.current = shapeTool;
 
   const screenToGrid = useCallback((sx: number, sy: number) => {
     const cs = cellSizeRef.current;
@@ -111,7 +226,6 @@ export function useCanvas({
       const startRow = Math.floor(-oy / cs);
       const endRow = Math.ceil((h - oy) / cs);
 
-      // Adaptive grid line drawing
       let gridStep = 1;
       if (cs < 4) gridStep = 20;
       else if (cs < 8) gridStep = 10;
@@ -162,8 +276,18 @@ export function useCanvas({
         }
       }
 
+      // Draw shape preview
+      if (isShapeDraggingRef.current && shapePreviewRef.current.length > 0) {
+        ctx!.fillStyle = shapePaintValueRef.current ? PREVIEW_COLOR : ERASE_PREVIEW_COLOR;
+        for (const [col, row] of shapePreviewRef.current) {
+          if (col >= startCol && col <= endCol && row >= startRow && row <= endRow) {
+            ctx!.fillRect(col * cs + ox, row * cs + oy, cs, cs);
+          }
+        }
+      }
+
       // Draw cursor highlight in edit mode
-      if (editModeRef.current && cursorScreenRef.current) {
+      if (editModeRef.current && cursorScreenRef.current && !isShapeDraggingRef.current) {
         const { col, row } = screenToGrid(
           cursorScreenRef.current.x,
           cursorScreenRef.current.y
@@ -188,6 +312,7 @@ export function useCanvas({
     if (!canvas) return;
 
     function handleMouseDown(e: MouseEvent) {
+      // Right-click panning in edit mode
       if (editModeRef.current && e.button === 2) {
         isDraggingRef.current = true;
         lastMouseRef.current = { x: e.clientX, y: e.clientY };
@@ -201,11 +326,24 @@ export function useCanvas({
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
         const { col, row } = screenToGrid(sx, sy);
-        const wasAlive = liveCellsRef.current.has(`${col},${row}` as import("../engine/types").CellKey);
-        editPaintValueRef.current = !wasAlive;
-        onCellToggle(col, row);
-        isEditDraggingRef.current = true;
-        lastEditCellRef.current = { col, row };
+
+        const tool = shapeToolRef.current;
+        const wasAlive = liveCellsRef.current.has(
+          `${col},${row}` as CellKey
+        );
+        const paintOn = !wasAlive;
+
+        if (tool === "freeform") {
+          editPaintValueRef.current = paintOn;
+          onCellToggleRef.current(col, row);
+          isEditDraggingRef.current = true;
+          lastEditCellRef.current = { col, row };
+        } else {
+          shapePaintValueRef.current = paintOn;
+          isShapeDraggingRef.current = true;
+          shapeStartRef.current = { col, row };
+          shapePreviewRef.current = [[col, row]];
+        }
       } else {
         isDraggingRef.current = true;
         lastMouseRef.current = { x: e.clientX, y: e.clientY };
@@ -224,21 +362,19 @@ export function useCanvas({
       const gridPos = screenToGrid(sx, sy);
       setCursorGridPos(gridPos);
 
-      if (isEditDraggingRef.current) {
+      if (isShapeDraggingRef.current && shapeStartRef.current) {
+        shapePreviewRef.current = computeShapeCells(
+          shapeToolRef.current,
+          shapeStartRef.current,
+          gridPos
+        );
+      } else if (isEditDraggingRef.current) {
         const last = lastEditCellRef.current;
         if (!last || gridPos.col !== last.col || gridPos.row !== last.row) {
           if (last) {
-            let x0 = last.col, y0 = last.row;
-            const x1 = gridPos.col, y1 = gridPos.row;
-            const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
-            const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
-            let err = dx + dy;
-            while (true) {
-              onCellSetRef.current(x0, y0, editPaintValueRef.current);
-              if (x0 === x1 && y0 === y1) break;
-              const e2 = 2 * err;
-              if (e2 >= dy) { err += dy; x0 += sx; }
-              if (e2 <= dx) { err += dx; y0 += sy; }
+            const pts = bresenhamLine(last.col, last.row, gridPos.col, gridPos.row);
+            for (const [px, py] of pts) {
+              onCellSetRef.current(px, py, editPaintValueRef.current);
             }
           } else {
             onCellSetRef.current(gridPos.col, gridPos.row, editPaintValueRef.current);
@@ -257,14 +393,28 @@ export function useCanvas({
     }
 
     function handleMouseUp() {
+      // Stamp shape preview onto the grid
+      if (isShapeDraggingRef.current && shapePreviewRef.current.length > 0) {
+        const paintOn = shapePaintValueRef.current;
+        for (const [col, row] of shapePreviewRef.current) {
+          onCellSetRef.current(col, row, paintOn);
+        }
+        shapePreviewRef.current = [];
+        shapeStartRef.current = null;
+      }
+
       isDraggingRef.current = false;
       isEditDraggingRef.current = false;
+      isShapeDraggingRef.current = false;
       lastEditCellRef.current = null;
     }
 
     function handleMouseLeave() {
       isDraggingRef.current = false;
       isEditDraggingRef.current = false;
+      isShapeDraggingRef.current = false;
+      shapePreviewRef.current = [];
+      shapeStartRef.current = null;
       lastEditCellRef.current = null;
       cursorScreenRef.current = null;
       setCursorGridPos(null);
@@ -306,7 +456,7 @@ export function useCanvas({
       canvas.removeEventListener("wheel", handleWheel);
       canvas.removeEventListener("contextmenu", handleContextMenu);
     };
-  }, [screenToGrid, onCellToggle]);
+  }, [screenToGrid]);
 
   return { canvasRef, cursorGridPos, resetView };
 }

@@ -5,6 +5,7 @@ import { PatternPanel } from "./components/PatternPanel";
 import { StatusBar } from "./components/StatusBar";
 import { useGameEngine } from "./hooks/useGameEngine";
 import { usePatterns } from "./hooks/usePatterns";
+import type { ShapeTool } from "./components/ShapeToolbar";
 
 const MAX_HISTORY = 100;
 
@@ -12,6 +13,7 @@ export function App() {
   const engine = useGameEngine();
   const patterns = usePatterns();
   const [editMode, setEditMode] = useState(false);
+  const [shapeTool, setShapeTool] = useState<ShapeTool>("freeform");
   const [cursorPos, setCursorPos] = useState<{
     col: number;
     row: number;
@@ -71,6 +73,8 @@ export function App() {
         <GridCanvas
           liveCells={engine.liveCells}
           editMode={editMode}
+          shapeTool={shapeTool}
+          onShapeToolChange={setShapeTool}
           onCellToggle={engine.toggleCell}
           onCellSet={engine.setCell}
           onCursorMove={handleCursorMove}
