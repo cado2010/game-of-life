@@ -1,0 +1,13 @@
+{
+  "name": "Acorn",
+  "description": "7 cells that take 5206 generations to stabilize into a pattern of 633 cells.",
+  "author": "Charles Corderman",
+  "category": "methuselah",
+  "cells": [
+    [1, 0],
+    [3, 1],
+    [0, 2], [1, 2], [4, 2], [5, 2], [6, 2]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

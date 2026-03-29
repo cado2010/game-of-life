@@ -1,0 +1,13 @@
+{
+  "name": "Boat",
+  "description": "5-cell still life shaped like a small boat.",
+  "author": "John Conway",
+  "category": "still-life",
+  "cells": [
+    [0, 0], [1, 0],
+    [0, 1], [2, 1],
+    [1, 2]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

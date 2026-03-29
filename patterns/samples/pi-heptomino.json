@@ -1,0 +1,13 @@
+{
+  "name": "Pi-heptomino",
+  "description": "7 cells shaped like the letter pi; stabilizes after 173 generations.",
+  "author": "Unknown",
+  "category": "methuselah",
+  "cells": [
+    [0, 0], [1, 0], [2, 0],
+    [0, 1], [2, 1],
+    [0, 2], [2, 2]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

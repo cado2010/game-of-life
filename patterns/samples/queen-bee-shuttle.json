@@ -1,0 +1,20 @@
+{
+  "name": "Queen Bee Shuttle",
+  "description": "Period-30 oscillator; a queen bee bounces between two stabilizing blocks.",
+  "author": "Bill Gosper",
+  "category": "oscillator",
+  "cells": [
+    [0, 0], [1, 0],
+    [0, 1], [1, 1],
+    [8, 0],
+    [9, -1], [9, 1],
+    [10, -2], [10, 2],
+    [11, -2], [11, 2],
+    [12, -1],
+    [13, 0],
+    [20, -1], [20, 0],
+    [21, -1], [21, 0]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}

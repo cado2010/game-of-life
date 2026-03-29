@@ -1,0 +1,16 @@
+{
+  "name": "Infinite Growth (10-cell)",
+  "description": "Smallest known pattern with infinite growth; 10 cells that grow without bound.",
+  "author": "Paul Callahan",
+  "category": "infinite-growth",
+  "cells": [
+    [6, 0],
+    [4, 1], [6, 1], [7, 1],
+    [4, 2], [6, 2],
+    [4, 3],
+    [2, 4],
+    [0, 5], [2, 5]
+  ],
+  "createdAt": "2026-03-28T00:00:00.000Z",
+  "updatedAt": "2026-03-28T00:00:00.000Z"
+}
